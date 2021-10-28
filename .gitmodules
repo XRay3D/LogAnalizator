@@ -1,0 +1,3 @@
+[submodule "LogAnalizatorQt/hidapi"]
+	path = LogAnalizatorQt/hidapi
+	url = git@github.com:libusb/hidapi.git
