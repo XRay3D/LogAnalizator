@@ -7,12 +7,12 @@ QMAKE_CXXFLAGS += -std:c++latest
 
 SOURCES += \
     main.cpp \
-    hid_pnp.cpp \
-    MainWindow.cpp
+    MainWindow.cpp \
+    usbdevice.cpp
 
 HEADERS  += \
-    hid_pnp.h \
-    MainWindow.h
+    MainWindow.h \
+    usbdevice.h
 
 FORMS    += \
     MainWindow.ui

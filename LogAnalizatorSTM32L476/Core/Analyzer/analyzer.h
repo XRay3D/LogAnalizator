@@ -26,21 +26,7 @@
 
 #define CAPTURE_COMPLETE (1 << 0)
 
-extern uint8_t Capture[CAPTURE_BUFFER_SIZE];
-extern volatile uint8_t Status_;
-extern uint16_t LevelTrigValue;
-extern uint16_t LevelTrigChnls;
-extern uint16_t EdgeTrigChnls;
-
-void LogAnaliz();
+void LogAnaliz(void* lcd);
 void AnalyzerInit();
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-void DMA_FOR_CAPTURE_ISR(void);
-#ifdef __cplusplus
-}
-#endif
 
 #endif //__ANALYZER_H

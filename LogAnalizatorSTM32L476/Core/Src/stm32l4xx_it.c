@@ -205,13 +205,7 @@ void SysTick_Handler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
-    if (((EXTI->PR1 & EdgeTrigChnls) == EdgeTrigChnls)
-        && ((CAPTURE_GPIO->IDR & LevelTrigChnls) == LevelTrigValue)) {
-        CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
-        EXTI->IMR1 &= ~EdgeTrigChnls;
-    }
 
-    EXTI->PR1 |= EdgeTrigChnls;
   /* USER CODE END EXTI0_IRQn 0 */
   if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_0) != RESET)
   {

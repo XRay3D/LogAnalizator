@@ -24,14 +24,13 @@
 #define __USBD_CUSTOM_HID_IF_H__
 
 #ifdef __cplusplus
-extern "C" {
+ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_customhid.h"
 
 /* USER CODE BEGIN INCLUDE */
-extern void Example_ParseReport(uint8_t* report);
 
 /* USER CODE END INCLUDE */
 

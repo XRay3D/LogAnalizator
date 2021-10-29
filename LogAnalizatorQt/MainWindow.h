@@ -1,11 +1,11 @@
 #ifndef DEMOAPP_H
 #define DEMOAPP_H
 
-#include "hid_pnp.h"
+#include "usbdevice.h"
 #include <QMainWindow>
 
 namespace Ui {
-class DemoApp;
+class MainWindow;
 }
 
 class MainWindow : public QMainWindow {
@@ -16,7 +16,7 @@ public:
     ~MainWindow();
 
 private:
-    Ui::DemoApp* ui;
+    Ui::MainWindow* ui;
     UsbDevice* usbDevice;
     void start();
 };

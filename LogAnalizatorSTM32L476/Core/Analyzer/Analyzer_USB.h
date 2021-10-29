@@ -20,7 +20,7 @@
 //#define USB_CMD_ID 1
 
 //команды
-#define USB_CMD_START_CAPTURE 1
+#define USB_CMD_START_CAPTURE 0x55
 
 //#define CAPTURE_SYNC_OFFSET (USB_CMD_POS + 1)
 //#define CAPTURE_TIM_PSC_OFFSET (CAPTURE_SYNC_OFFSET + 1)
@@ -35,15 +35,14 @@ union CaptureT {
     struct {
         uint8_t USB_REPORT_ID_POS;
         uint8_t USB_CMD_POS;
-        uint8_t CAPTURE_SYNC_OFFSET;
-        uint8_t CAPTURE_TIM_PSC_OFFSET;
-        uint8_t CAPTURE_TIM_ARR_OFFSET;
-        uint16_t CAPTURE_SAMPLE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_ENABLE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_MODE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_SET_OFFSET;
-        uint8_t CAPTURE_TRIGGER_MASK;
-
+        uint8_t SYNC;
+        uint8_t TIM_PSC;
+        uint8_t TIM_ARR;
+        uint16_t SAMPLE;
+        uint8_t TRIGGER_ENABLE;
+        uint8_t TRIGGER_MODE;
+        uint8_t TRIGGER_SET;
+        uint8_t TRIGGER_MASK;
     };
     uint8_t array[64] {};
 };
@@ -78,13 +77,12 @@ enum USB_Status : uint8_t {
 struct Analyzer_USB {
     uint8_t* GetPacket();
     USB_Status status();
-    uint8_t* IsReadyToSend();
+    bool IsReadyToSend();
     void clearStatus(USB_Status StatusFlag);
-    void RecPacket(uint8_t* Packet);
-    void SendData(uint8_t* Data);
+    void ReceiveData(uint8_t* data);
+    int8_t TransmitData(uint8_t* data);
 
 private:
-    uint8_t PrevXferDone { 1 };
     uint8_t USBStatus { USB_Status::IDLE };
     uint8_t USBDataBuf[USB_MESSAGE_LENGTH] {};
 };

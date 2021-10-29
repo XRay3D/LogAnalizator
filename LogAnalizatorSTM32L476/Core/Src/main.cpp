@@ -1,7 +1,7 @@
 #include "main.h"
 #include "Nokia1616_LCD_lib.h"
 #include "analyzer.h"
-#include "ctre.hpp"
+//#include "ctre.hpp"
 #include "dma.h"
 #include "gpio.h"
 #include "main.h"
@@ -12,6 +12,15 @@
 
 extern "C" void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
+
+extern "C" int _write(int file, char* ptr, int len)
+{
+    //return usart_write(platform_get_console(), (u8 *)ptr, len);
+    int i = 0;
+    for (i = 0; i < len; i++)
+        ITM_SendChar((*ptr++));
+    return len;
+}
 
 int main(void)
 {
@@ -34,7 +43,7 @@ int main(void)
     AnalyzerInit();
 
     while (1) {
-        LogAnaliz();
+        LogAnaliz(&lcd);
         //        constexpr uint8_t Rows = 20;
         //        if (1) {
         //            lcd.print(v++, { 0, uint8_t(row++ % Rows * 8) }, White, 2);

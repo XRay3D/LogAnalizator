@@ -1,6 +1,7 @@
 #include "MainWindow.h"
-#include "ui_demoapp.h"
+#include "ui_MainWindow.h"
 #include <array>
+#include <QDebug>
 
 static const unsigned char CHANNEL_COUNT = 8;
 static const int START_X_VALUE = 0;
@@ -15,7 +16,7 @@ static std::array const SmallTimeMarkStep { 5, 10, 9, 15, 20, 20 };
 static std::vector<double> const DescretTime; //мкс
 static std::vector<std::string> const TimeUnits; //частота 100 кГц; 400 кГц; 800 кГц; 1 МГц; 1,6 МГц; 2 МГц; 3 МГц; 4 МГц; 6 МГц; 8 МГц;
 
-static std::vector<int> const SampleCount { 128, 256, 512, 1024, 2048, 4096 };
+//static std::vector<int> const SampleCount { 128, 256, 512, 1024, 2048, 4096 };
 static std::vector<std::string> const FreqStrings;
 static std::vector<unsigned char> const CaptureTimPsc { 23, 11, 9, 7, 5, 5, 3, 3, 3, 2 };
 static std::vector<unsigned char> const CaptureTimArr { 19, 9, 5, 5, 4, 3, 3, 2, 1, 1 };
@@ -43,7 +44,7 @@ static const unsigned char USB_CMD_PACKET_SIZE = 64;
 //static const unsigned char USB_CMD_POS = 1;
 
 static const unsigned char USB_CMD_ID = 1;
-static const unsigned char USB_CMD_START_CAPTURE = 1;
+static const unsigned char USB_CMD_START_CAPTURE = 0x55;
 
 #pragma pack(push, 1)
 union CAPTURE {
@@ -86,7 +87,7 @@ int FramePoints = 0;
 int UpdatePoints = 0;
 int DescretTimeIndex = 0;
 int ScaleXIndex = 0;
-int SamplesToCapture = SampleCount[2];
+//int SamplesToCapture = SampleCount[2];
 //std::vector<AnalyzerChannel> Channels;
 
 bool MeasuringActive = false;
@@ -100,8 +101,9 @@ bool USBDevDetected = false;
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
-    , ui { new Ui::DemoApp }
-    , usbDevice { new UsbDevice(this) } {
+    , ui { new Ui::MainWindow }
+    , usbDevice { new UsbDevice(this) }
+{
     ui->setupUi(this);
     ui->cbxSamples->addItems({ "128", "256", "512", "1024", "2048", "4096" });
     ui->cbxFreq->addItems({ "100 кГц", "400 кГц", "800 кГц", "1 МГц", "1,6 МГц", "2 МГц", "3 МГц", "4 МГц", "6 МГц", "8 МГц" });
@@ -113,13 +115,15 @@ MainWindow::MainWindow(QWidget* parent)
     //    plugNPlay->PollUSB();
 }
 
-MainWindow::~MainWindow() {
+MainWindow::~MainWindow()
+{
     //disconnect(this, SIGNAL(toggle_leds_button_pressed()), plugNPlay, SLOT(toggle_leds()));
     //    disconnect(plugNPlay, SIGNAL(hid_comm_update(bool, int)), this, SLOT(update_gui(bool, int)));
     delete ui;
 }
 
-void MainWindow::start() {
+void MainWindow::start()
+{
     if (usbDevice->isConnected()) {
 
         CAPTURE capture;
@@ -132,8 +136,7 @@ void MainWindow::start() {
         capture.CAPTURE_TIM_ARR_OFFSET = CaptureTimArr[Value];
         DescretTimeIndex = Value;
 
-        SamplesToCapture = SampleCount[ui->cbxSamples->currentIndex()];
-        capture.CAPTURE_SAMPLE_OFFSET = SamplesToCapture;
+        capture.CAPTURE_SAMPLE_OFFSET = ui->cbxSamples->currentText().toUInt();
         if (0) { //TriggerActivationCheckBox->IsChecked == true) {
             //            capture.CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_TRIGGER_ENABLE;
             //            capture.CAPTURE_TRIGGER_MODE_OFFSET = CAPTURE_TRIGGER_MODE_CHANNELS;
@@ -147,15 +150,19 @@ void MainWindow::start() {
             capture.CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_TRIGGER_DISABLE;
         }
 
-        bool USBSuccess = usbDevice->Write({ capture.array });
+        int USBSuccess = usbDevice->Write({ capture.array });
+        ui->plainTextEdit->appendPlainText(QString::number(USBSuccess));
 
-        std::vector<unsigned char> InputData(SamplesToCapture);
+        std::vector<unsigned char> InputData(capture.CAPTURE_SAMPLE_OFFSET);
 
-        Value = SamplesToCapture / USB_CMD_PACKET_SIZE;
+        Value = capture.CAPTURE_SAMPLE_OFFSET / USB_CMD_PACKET_SIZE;
 
         for (int i = 0; i < Value; i++) {
             USBSuccess = usbDevice->Read({ InputData.data() + i * USB_CMD_PACKET_SIZE, USB_CMD_PACKET_SIZE });
+            ui->plainTextEdit->appendPlainText(QString::number(USBSuccess));
         }
+
+        qDebug() << QByteArray((const char*)InputData.data(), InputData.size()).toHex();
 
         //        std::vector<PointCollection> NewChannelsData(CHANNEL_COUNT);
         //        for (int chnl = 0; chnl < CHANNEL_COUNT; chnl++) {

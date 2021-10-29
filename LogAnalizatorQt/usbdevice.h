@@ -23,15 +23,12 @@ public:
 
     bool isConnected() const;
 
-signals:
-
-public slots:
     void PollUSB();
 
     bool Open();
     void Close();
-    bool Read(std::span<uint8_t> data);
-    bool Write(const std::span<uint8_t> data);
+    int Read(std::span<uint8_t> data);
+    int Write(std::span<uint8_t> data);
 
 private:
     bool isConnected_ {};

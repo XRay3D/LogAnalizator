@@ -104,10 +104,7 @@ void SPFD54124B::init()
     LL_SPI_EnableDMAReq_TX(SPI2);
     LL_SPI_Enable(SPI2);
 
-    //    LL_DMA_EnableIT_TC(DMA_SPI2_TX_CH5);
-    //    LL_DMA_EnableIT_TE(DMA_SPI2_TX_CH5);
     LL_DMA_ClearFlag_TC5(DMA1);
-    LL_DMA_ClearFlag_TE5(DMA1);
     LL_DMA_SetPeriphAddress(DMA_SPI2_TX_CH5, LL_SPI_DMA_GetRegAddr(SPI2));
 
     const uint16_t cfg[] {
@@ -129,143 +126,6 @@ void SPFD54124B::init()
     sendDma(cfg);
 
     clear();
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SETEXTCMD, //  1: ???, 3 args, no delay
-    //                0x1FF,
-    //                0x183,
-    //                0x140,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SPLOUT //  2: No args, delay follows
-    //            };
-    //            sendDma(cfg);;
-    //            LL_mDelay(150); //     150 ms delay
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                0xCA, //  3: Undoc'd register?  3 args, no delay
-    //                0x170,
-    //                0x100,
-    //                0x1D9,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                0xB0, //  4: Undoc'd register?  2 args, no delay
-    //                0x101,
-    //                0x111,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                0xC9, //  5: Drive ability, 8 args + delay
-    //                0x190,
-    //                0x149,
-    //                0x110,
-    //                0x128,
-    //                0x128,
-    //                0x110,
-    //                0x100,
-    //                0x106,
-    //            };
-    //            sendDma(cfg);;
-    //            LL_mDelay(20); //     20 ms delay
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SETGAMMAP, //  6: Positive gamma control, 9 args
-    //                0x160,
-    //                0x171,
-    //                0x101, //     2.2
-    //                0x10E,
-    //                0x105,
-    //                0x102,
-    //                0x109,
-    //                0x131,
-    //                0x10A,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SETGAMMAN, //  7: Negative gamma, 8 args + delay
-    //                0x167,
-    //                0x130,
-    //                0x161,
-    //                0x117, //     2.2
-    //                0x148,
-    //                0x107,
-    //                0x105,
-    //                0x133,
-    //            };
-    //            sendDma(cfg);;
-    //            LL_mDelay(10); //     10 ms delay
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SETPWCTR5, //  8: Power Control 5, 3 args
-    //                0x135,
-    //                0x120,
-    //                0x145,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::SETPWCTR4, //  9: Power control 4, 3 args + delay
-    //                0x133,
-    //                0x125,
-    //                0x14c,
-    //            };
-    //            sendDma(cfg);;
-    //            LL_mDelay(10); //     10 ms delay
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::COLMOD, // 10: Color Mode, 1 arg
-    //                0x105, //     0x05 = 16bpp, 0x06 = 18bpp
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::DISPON // 11: Display on, no args, w/delay
-    //            };
-    //            sendDma(cfg);;
-    //            LL_mDelay(10); //     10 ms delay
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::CASET, // 12: Physical column pointer, 4 args
-    //                0x100, //     175 (max X)
-    //                0x100,
-    //                0x100,
-    //                0x1af,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::PASET, // 13: Physical page pointer, 4 args
-    //                0x100, //     219 (max Y)
-    //                0x100,
-    //                0x100,
-    //                0x1db,
-    //            };
-    //            sendDma(cfg);;
-    //        }
-    //        {
-    //            constexpr uint16_t cfg[] {
-    //                CMD::RAMWR, 0 // 14: Start GRAM write
-    //            };
-    //            sendDma(cfg);;
-    //        }
 }
 
 void SPFD54124B::sendDat(uint8_t data)
@@ -285,7 +145,7 @@ void SPFD54124B::sendDma(const void* data, uint32_t size) const
     if (!size)
         return;
     LL_DMA_SetDataLength(DMA_SPI2_TX_CH5, size);
-    LL_DMA_SetMemoryAddress(DMA_SPI2_TX_CH5, reinterpret_cast<uint32_t>(data));
+    LL_DMA_SetMemoryAddress(DMA_SPI2_TX_CH5, uint32_t(data));
     LL_DMA_EnableChannel(DMA_SPI2_TX_CH5);
     waitDma();
 }
@@ -293,8 +153,8 @@ void SPFD54124B::sendDma(const void* data, uint32_t size) const
 void SPFD54124B::waitDma() const
 {
     while (!LL_DMA_IsActiveFlag_TC5(DMA1)) { }
-    LL_DMA_DisableChannel(DMA_SPI2_TX_CH5);
     LL_DMA_ClearFlag_TC5(DMA1);
+    LL_DMA_DisableChannel(DMA_SPI2_TX_CH5);
 }
 
 void SPFD54124B::waitSpi() const

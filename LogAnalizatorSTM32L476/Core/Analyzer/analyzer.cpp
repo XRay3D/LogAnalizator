@@ -11,43 +11,55 @@
 #include "Analyzer_USB.h"
 #include "main.h"
 
-uint8_t Capture[CAPTURE_BUFFER_SIZE] {};
-volatile uint8_t Status_;
+#include "Nokia1616_LCD_lib.h"
+
+uint8_t CaptureBuff[CAPTURE_BUFFER_SIZE] {};
+volatile bool isComplete;
 uint16_t LevelTrigValue;
 uint16_t LevelTrigChnls;
 uint16_t EdgeTrigChnls;
 
-void LogAnaliz() {
+void LogAnaliz(void* lcd_)
+{
+    Nokia1616_LCD& lcd = *(Nokia1616_LCD*)lcd_;
     //    AnalyzerInit();
-
+    uint8_t y {};
     //    for (;;) {
+    static int ctr {};
     if (Analyzer.status() == USB_Status::START_CAPTURE) {
-        CaptureT* NewData = (CaptureT*)Analyzer.GetPacket();
-        uint16_t SamplesToCapture = NewData->CAPTURE_SAMPLE_OFFSET;
+        lcd.clear();
+        lcd.print(++ctr, { 0, y += 8 }, White);
 
-
-        Status_ &= ~CAPTURE_COMPLETE;
+        CaptureT* Capture = (CaptureT*)Analyzer.GetPacket();
+        uint16_t SamplesToCapture = Capture->SAMPLE;
+        lcd.print("Start", { 0, y += 8 }, White);
+        lcd.print("SAMPLE", { 0, y += 8 }, White);
+        lcd.print(Capture->SAMPLE, { 0, y += 8 }, White);
+        lcd.print("TIM_ARR", { 0, y += 8 }, White);
+        lcd.print(Capture->TIM_ARR, { 0, y += 8 }, White);
+        lcd.print("TIM_PSC", { 0, y += 8 }, White);
+        lcd.print(Capture->TIM_PSC, { 0, y += 8 }, White);
+        isComplete = false;
         DMA_CAPTURE_CH->CNDTR = SamplesToCapture;
         DMA_CAPTURE_CH->CCR |= DMA_CCR_EN;
 
         CAPTURE_TIMER->SR = 0;
-        CAPTURE_TIMER->PSC = NewData->CAPTURE_TIM_PSC_OFFSET;
-
-        CAPTURE_TIMER->ARR = NewData->CAPTURE_TIM_ARR_OFFSET;
-        CAPTURE_TIMER->CNT = CAPTURE_TIMER->ARR;
+        CAPTURE_TIMER->PSC = Capture->TIM_PSC;
+        CAPTURE_TIMER->CNT = CAPTURE_TIMER->ARR = Capture->TIM_ARR;
         CAPTURE_TIMER->DIER = TIM_DIER_UDE;
-        if (NewData->CAPTURE_TRIGGER_ENABLE_OFFSET == CAPTURE::TRIG_ENABLE) {
+
+        if (0 && Capture->TRIGGER_ENABLE == CAPTURE::TRIG_ENABLE) {
             LevelTrigValue = 0;
             LevelTrigChnls = 0;
-            EXTI->RTSR1 &= ~LINE_INTERRUPT_MASK;
-            EXTI->FTSR1 &= ~LINE_INTERRUPT_MASK;
+            CLEAR_BIT(EXTI->RTSR1, LINE_INTERRUPT_MASK);
+            CLEAR_BIT(EXTI->FTSR1, LINE_INTERRUPT_MASK);
             uint8_t OnlyLevelTrigger = 1;
             uint8_t TrigSetBytes = CAPTURE::TRIG_BYTES_COUNT;
             uint8_t ChnlNumOffset = 0;
             uint16_t InterruptMask = CAPTURE_MASK;
 
             for (uint8_t TrigByte = 0; TrigByte < TrigSetBytes; TrigByte++) {
-                uint8_t TrigSettings = NewData->CAPTURE_TRIGGER_MASK;
+                uint8_t TrigSettings = Capture->TRIGGER_MASK;
 
                 for (uint8_t ChnlPart = 0; ChnlPart < 2; ChnlPart++) {
                     uint8_t ChnlNum = 2 * TrigByte + ChnlPart + ChnlNumOffset;
@@ -87,41 +99,41 @@ void LogAnaliz() {
                 }
             }
 
-            if (OnlyLevelTrigger == 1) //у всех каналов триггеры по уровню
-            {
-                while ((CAPTURE_GPIO->IDR & LevelTrigChnls) != LevelTrigValue)
-                    ;
+            if (OnlyLevelTrigger == 1) { //у всех каналов триггеры по уровню
+                while ((CAPTURE_GPIO->IDR & LevelTrigChnls) != LevelTrigValue) { }
                 CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
-            }
-
-            else {
+            } else {
                 EdgeTrigChnls = EXTI->RTSR1;
                 EdgeTrigChnls = (EdgeTrigChnls | EXTI->FTSR1) & InterruptMask;
                 EXTI->IMR1 |= EdgeTrigChnls;
             }
-        }
-
-        else
+        } else {
             CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
-
-        while ((Status_ & CAPTURE_COMPLETE) != CAPTURE_COMPLETE) {
-            __WFI();
         }
+
+        lcd.print("Wait", { 0, y += 8 }, White);
+
+        while (!isComplete) //& CAPTURE_COMPLETE) != CAPTURE_COMPLETE) {
+            __WFI();
+
+        lcd.print("Complete", { 0, y += 8 }, White);
 
         uint8_t PacketsToSend = SamplesToCapture / USB_MESSAGE_LENGTH;
-
-        for (uint8_t Packet = 0; Packet < PacketsToSend; Packet++) {
-            while ((*Analyzer.IsReadyToSend()) != 1) { }
-
-            Analyzer.SendData(&Capture[USB_MESSAGE_LENGTH * Packet]);
+        for (uint8_t Packet {}; Packet < PacketsToSend; ++Packet) {
+            while (!Analyzer.IsReadyToSend()) { }
+            lcd.print(Analyzer.TransmitData(CaptureBuff + USB_MESSAGE_LENGTH * Packet), { 0, y += 8 }, Red);
         }
+        lcd.print("Packet", { 0, y += 8 }, White);
 
         Analyzer.clearStatus(USB_Status::START_CAPTURE);
+        lcd.print("End", { 0, y += 8 }, White);
     }
+
     //}
 }
 
-void AnalyzerInit() {
+void AnalyzerInit()
+{
     //    //HSI, PLL, 48 MHz
     //    FLASH->ACR = FLASH_ACR_PRFTBE | (uint32_t)FLASH_ACR_LATENCY;
     //    // HCLK = SYSCLK / 1
@@ -155,36 +167,35 @@ void AnalyzerInit() {
     //    //ПДП (DMA)
     //    RCC->DMA_FOR_CAPTURE_ENR |= DMA_FOR_CAPTURE_CLK_EN;
     DMA_CAPTURE_CH->CPAR = (uint32_t)(&(GPIOA->IDR));
-    DMA_CAPTURE_CH->CMAR = (uint32_t)(Capture);
+    DMA_CAPTURE_CH->CMAR = (uint32_t)(CaptureBuff);
     DMA_CAPTURE_CH->CCR = DMA_CCR_MINC | DMA_CCR_TEIE | DMA_CCR_TCIE;
     //    NVIC_EnableIRQ(DMA_CNL_FOR_CAPTURE_IRQ);
     //    NVIC_SetPriority(DMA_CNL_FOR_CAPTURE_IRQ, 0);
 
     //    //таймер для захвата
-    //    RCC->CAPTURE_TIMER_ENR |= CAPTURE_TIMER_CLK_EN;
+    //    RCC->TIMER_ENR |= CAPTURE_TIMER_CLK_EN;
 
     //    Analyzer.Init();
 }
 
-extern "C" void EXTI_LogAnalizer() {
+extern "C" void EXTI_LogAnalizer()
+{
     if (((EXTI->PR2 & EdgeTrigChnls) == EdgeTrigChnls) && ((CAPTURE_GPIO->IDR & LevelTrigChnls) == LevelTrigValue)) {
         LL_TIM_EnableCounter(TIM1);
-        EXTI->IMR2 &= ~EdgeTrigChnls;
+        CLEAR_BIT(EXTI->IMR2, EdgeTrigChnls);
     }
-    EXTI->PR2 |= EdgeTrigChnls;
+    SET_BIT(EXTI->PR2, EdgeTrigChnls);
 }
 
-void DMA_FOR_CAPTURE_ISR(void) {
-
-    if ((DMA_FOR_CAPTURE->ISR & DMA_ISR_TEIF3) == DMA_ISR_TEIF3) {
-        DMA_CAPTURE_CH->CCR |= DMA_CCR_EN;
-    }
-
-    else if ((DMA_FOR_CAPTURE->ISR & DMA_ISR_TCIF3) == DMA_ISR_TCIF3) {
-        CAPTURE_TIMER->CR1 &= ~TIM_CR1_CEN;
-        DMA_FOR_CAPTURE->IFCR |= DMA_IFCR_CGIF3;
-        DMA_CAPTURE_CH->CCR &= ~DMA_CCR_EN;
-        CAPTURE_TIMER->DIER &= ~TIM_DIER_UDE;
-        Status_ |= CAPTURE_COMPLETE;
+extern "C" void DMA_FOR_CAPTURE_ISR(void)
+{
+    if (READ_BIT(DMA_FOR_CAPTURE->ISR, DMA_ISR_TEIF6) == DMA_ISR_TEIF6) {
+        SET_BIT(DMA_CAPTURE_CH->CCR, DMA_CCR_EN);
+    } else if (READ_BIT(DMA_FOR_CAPTURE->ISR, DMA_ISR_TCIF6) == DMA_ISR_TCIF6) {
+        SET_BIT(DMA_FOR_CAPTURE->IFCR, DMA_IFCR_CGIF6);
+        CLEAR_BIT(DMA_CAPTURE_CH->CCR, DMA_CCR_EN);
+        CLEAR_BIT(CAPTURE_TIMER->CR1, TIM_CR1_CEN);
+        CLEAR_BIT(CAPTURE_TIMER->DIER, TIM_DIER_UDE);
+        isComplete = true;
     }
 }

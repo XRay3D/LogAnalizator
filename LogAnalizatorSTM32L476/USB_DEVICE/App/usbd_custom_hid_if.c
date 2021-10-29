@@ -23,7 +23,6 @@
 #include "usbd_custom_hid_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-#include "Analyzer_USB.h"
 
 /* USER CODE END INCLUDE */
 
@@ -91,35 +90,86 @@
 
 /** Usb HID report descriptor. */
 __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DESC_SIZE] __ALIGN_END = {
-    /* USER CODE BEGIN 0 */
+//    /* USER CODE BEGIN 0 */
+#if 1
     0x06, 0x00, 0xff, // USAGE_PAGE (Generic Desktop)
     0x09, 0x01, // USAGE (Vendor Usage 1)
+
+    // System Parameters
+    //    0xa1, 0x01, //  COLLECTION (Application)
+    //    0x85, 0x01, //  REPORT_ID (1)
+    //    0x09, 0x01, //  USAGE (Vendor Usage 1)
+    //    0x15, 0x00, //  LOGICAL_MINIMUM (0)
+    //    0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
+    //    0x75, 0x08, //  REPORT_SIZE (8)
+    //    0x95, 64, //    REPORT_COUNT (64)
+    //    0xb1, 0x82, //  FEATURE (Data,Var,Abs,Vol)
+    //    0x85, 0x01, //  REPORT_ID (1)
+    //    0x09, 0x01, //  USAGE (Vendor Usage 1)
+    //    0x91, 0x82, //  OUTPUT (Data,Var,Abs,Vol)
+
+    //    0x85, 0x02, //  REPORT_ID (2)
+    //    0x09, 0x02, //  USAGE (Vendor Usage 2)
+    //    0x75, 0x08, //  REPORT_SIZE (8)
+    //    0x95, 64, //    REPORT_COUNT (64)
+    //    0x81, 0x82, //  INPUT (Data,Var,Abs,Vol)
+    //    0x85, 0x02, //  REPORT_ID (2)
+    //    0x09, 0x02, //  USAGE (Vendor Usage 2)
+    //    0xb1, 0x82, //  FEATURE (Data,Var,Abs,Vol)
+
+
     0xa1, 0x01, // COLLECTION (Application)
-    // + 7
+    0x15, 0x00, //   LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
 
-    0x85, 0x01, // REPORT_ID
-    0x09, 0x01, // USAGE
-    0x15, 0x00, // LOGICAL_MINIMUM (0)
-    0x26, 0xFF, 0x00, // LOGICAL_MAXIMUM (255)
-    0x75, 0x08, // REPORT_SIZE (8)
-    0x95, 20, // REPORT_COUNT
-    0xb1, 0x82, // FEATURE (Data,Var,Abs,Vol)
-    // + 15
+    0x85, 0x01, //   REPORT_ID (1)
+    0x09, 0x01, //   USAGE (Vendor Usage 1)
+    0x75, 0x08, //   REPORT_SIZE (8)
+    0x95, CUSTOM_HID_EPOUT_SIZE, //   REPORT_COUNT (64)
+    0x91, 0x82, //   OUTPUT (Data,Var,Abs)
 
-    0x85, 0x01, // REPORT_ID
-    0x09, 0x01, // USAGE
-    0x95, 10, // REPORT_COUNT
-    0x91, 0x82, // OUTPUT (Data,Var,Abs,Vol)
-    // + 8
+    0x85, 0x02, //   REPORT_ID (1)
+    0x09, 0x02, //   USAGE (Vendor Usage 1)
+    0x75, 0x08, //   REPORT_SIZE (8)
+    0x95, CUSTOM_HID_EPIN_SIZE, //   REPORT_COUNT (64)
+    0x81, 0x82, //   INPUT (Data,Var,Abs)
 
-    0x85, 0x02, // REPORT_ID
-    0x09, 0x02, // USAGE - ??? 2
-    0x75, 0x08, // REPORT_SIZE (8)
-    0x95, (33 - 1), // REPORT_COUNT
-    0x81, 0x82, // INPUT (Data,Var,Abs,Vol)
-    // + 10
+#else
+    0x06, 0xFF, 0x00, /* USAGE_PAGE (Vendor Page: 0xFF00) */
+    0x09, 0x01, /* USAGE (Demo Kit)               */
+    0xa1, 0x01, /* COLLECTION (Application)       */
+/* 6 */
+/*
+  // Led 1
+  0x85, 0x01,            //     REPORT_ID (1)
+  0x09, 0x01,            //     USAGE (LED 1)
+  0x15, 0x00,            //     LOGICAL_MINIMUM (0)
+  0x25, 0x01,            //     LOGICAL_MAXIMUM (1)
+  0x75, 0x08,            //     REPORT_SIZE (8)
+  0x95, (USB_MESSAGE_LENGTH - 1),            //     REPORT_COUNT (1)
+  0xB1, 0x82,             //    FEATURE (Data,Var,Abs,Vol)
 
-    // + 1
+    0x85, 0x01,            //     REPORT_ID (1)
+    0x09, 0x01,            //     USAGE (LED 1)
+    0x91, 0x82,            //     OUTPUT (Data,Var,Abs,Vol)
+    // 26
+    */
+/*
+  // Led 2
+  0x85, 0x02,            //     REPORT_ID (1)
+  0x09, 0x01,            //     USAGE (LED 1)
+  0x15, 0x00,            //     LOGICAL_MINIMUM (0)
+  0x25, 0x01,            //     LOGICAL_MAXIMUM (1)
+  0x75, 0x08,            //     REPORT_SIZE (8)
+  0x95, (USB_MESSAGE_LENGTH - 1),            //     REPORT_COUNT (1)
+  0xB1, 0x82,             //    FEATURE (Data,Var,Abs,Vol)
+
+        0x85, 0x02,            //     REPORT_ID (1)
+    0x09, 0x01,            //     USAGE (LED 1)
+    0x91, 0x82,            //     OUTPUT (Data,Var,Abs,Vol)
+    // 46
+    */
+#endif
     /* USER CODE END 0 */
     0xC0 /*     END_COLLECTION	             */
 };
@@ -176,7 +226,8 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS = {
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_Init_FS(void) {
+static int8_t CUSTOM_HID_Init_FS(void)
+{
     /* USER CODE BEGIN 4 */
     return (USBD_OK);
     /* USER CODE END 4 */
@@ -186,13 +237,12 @@ static int8_t CUSTOM_HID_Init_FS(void) {
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_DeInit_FS(void) {
+static int8_t CUSTOM_HID_DeInit_FS(void)
+{
     /* USER CODE BEGIN 5 */
     return (USBD_OK);
     /* USER CODE END 5 */
 }
-
-void Example_ParseReport(uint8_t* report) { }
 
 /**
   * @brief  Manage the CUSTOM HID class events
@@ -200,24 +250,20 @@ void Example_ParseReport(uint8_t* report) { }
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
+static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
+{
     /* USER CODE BEGIN 6 */
-
     UNUSED(event_idx);
     UNUSED(state);
+
+    USBD_CUSTOM_HID_HandleTypeDef* hhid = hUsbDeviceFS.pClassData;
+    extern void ReceiveData(uint8_t * data);
+    ReceiveData(hhid->Report_buf);
+
     /* Start next USB packet transfer once data processing is completed */
     USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS);
-    USBD_CUSTOM_HID_HandleTypeDef* hhid = (USBD_CUSTOM_HID_HandleTypeDef*)hUsbDeviceFS.pClassData;
-    Analyzer.RecPacket(hhid->Report_buf); // Report_buf[0] = Report ID
+
     return (USBD_OK);
-
-    //    UNUSED(event_idx);
-    //    UNUSED(state);
-
-    //    /* Start next USB packet transfer once data processing is completed */
-    //    USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS);
-
-    //    return (USBD_OK);
     /* USER CODE END 6 */
 }
 
