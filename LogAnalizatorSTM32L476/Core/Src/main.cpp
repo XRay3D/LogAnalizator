@@ -1,7 +1,6 @@
 #include "main.h"
 #include "Nokia1616_LCD_lib.h"
 #include "analyzer.h"
-//#include "ctre.hpp"
 #include "dma.h"
 #include "gpio.h"
 #include "main.h"
@@ -13,8 +12,7 @@
 extern "C" void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 
-extern "C" int _write(int file, char* ptr, int len)
-{
+extern "C" int _write(int file, char* ptr, int len) {
     //return usart_write(platform_get_console(), (u8 *)ptr, len);
     int i = 0;
     for (i = 0; i < len; i++)
@@ -22,8 +20,7 @@ extern "C" int _write(int file, char* ptr, int len)
     return len;
 }
 
-int main(void)
-{
+int main(void) {
     HAL_Init();
     SystemClock_Config();
     PeriphCommonClock_Config();
@@ -32,47 +29,18 @@ int main(void)
     MX_DMA_Init();
     MX_SPI2_Init();
     MX_USB_DEVICE_Init();
-    MX_TIM1_Init();
+    MX_TIM5_Init();
 
     Nokia1616_LCD lcd;
 
-    uint64_t v {};
-    uint8_t row {};
-    lcd.clear();
-
-    AnalyzerInit();
+    Analyzer.Init();
 
     while (1) {
-        LogAnaliz(&lcd);
-        //        constexpr uint8_t Rows = 20;
-        //        if (1) {
-        //            lcd.print(v++, { 0, uint8_t(row++ % Rows * 8) }, White, 2);
-        //            lcd.print(v++, { 0, uint8_t(row++ % Rows * 8) }, Red, 8);
-        //            lcd.print(v++, { 0, uint8_t(row++ % Rows * 8) }, Green, 10);
-        //            lcd.print(v++, { 0, uint8_t(row++ % Rows * 8) }, Blue, 16);
-        //        } else {
-        //            char str[Nokia1616_LCD::Width / 6 + 1];
-        //            //srand(SysTick->VAL);
-        //            for (auto&& chr : str)
-        //                chr = rand() & 0x7F;
-        //            str[std::size(str) - 1] = 0;
-        //            if (auto [whole, cap1, cap2] = ctre::match<R"(.*(\d{2})\S*(\d{2})\S*)">(str); whole) { //22520
-        //                lcd.clear();
-        //                row = 8 * 3;
-        //                lcd.print(whole.to_view(), { 0, row += 8 }, Green);
-        //                lcd.print(cap1.to_view(), { 0, row += 8 }, Red);
-        //                lcd.print(cap2.to_view(), { 0, row += 8 }, Red);
-        //            } else {
-        //                lcd.print("Error", { 0, 0 }, White);
-        //                lcd.print({ str, std::size(str) }, { 0, 8 }, White);
-        //                lcd.print(++v, { 0, 16 }, Blue);
-        //            }
-        //        }
+        Analyzer.pool(&lcd);
     }
 }
 
-void SystemClock_Config(void)
-{
+void SystemClock_Config(void) {
     LL_FLASH_SetLatency(LL_FLASH_LATENCY_4);
     while (LL_FLASH_GetLatency() != LL_FLASH_LATENCY_4) {
     }
@@ -120,8 +88,7 @@ void SystemClock_Config(void)
   * @brief Peripherals Common Clock Configuration
   * @retval None
   */
-void PeriphCommonClock_Config(void)
-{
+void PeriphCommonClock_Config(void) {
     LL_RCC_PLLSAI1_ConfigDomain_48M(LL_RCC_PLLSOURCE_MSI, LL_RCC_PLLM_DIV_1, 24, LL_RCC_PLLSAI1Q_DIV_2);
     LL_RCC_PLLSAI1_EnableDomain_48M();
     LL_RCC_PLLSAI1_Enable();
@@ -131,8 +98,7 @@ void PeriphCommonClock_Config(void)
     }
 }
 
-extern "C" void Error_Handler(void)
-{
+extern "C" void Error_Handler(void) {
     __disable_irq();
     while (1) {
     }
@@ -146,8 +112,7 @@ extern "C" void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t* file, uint32_t line)
-{
+void assert_failed(uint8_t* file, uint32_t line) {
 
     /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */

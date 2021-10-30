@@ -2,6 +2,8 @@
 #include "main.h"
 #include "spi.h"
 
+#include <span>
+
 #define RES_Pin GPIOB
 #define SET_RES GPIO_BSRR_BS4
 #define RES_RES GPIO_BSRR_BR4
@@ -92,8 +94,7 @@ enum : uint16_t { DATA = 0x0100 };
 
 SPFD54124B::SPFD54124B() { init(); }
 
-void SPFD54124B::init()
-{
+void SPFD54124B::init() {
     // reset
     RES_Pin->BSRR = RES_RES;
     LL_mDelay(1);
@@ -128,43 +129,41 @@ void SPFD54124B::init()
     clear();
 }
 
-void SPFD54124B::sendDat(uint8_t data)
-{
+void SPFD54124B::sendDat(uint8_t data) {
     LL_SPI_TransmitData16(SPI2, DATA | data);
     waitSpi();
 }
 
-void SPFD54124B::sendCmd(uint8_t data)
-{
+void SPFD54124B::sendCmd(uint8_t data) {
     LL_SPI_TransmitData16(SPI2, data);
     waitSpi();
 }
 
-void SPFD54124B::sendDma(const void* data, uint32_t size) const
-{
+void SPFD54124B::sendDma(const void* data, uint32_t size) const {
     if (!size)
         return;
+    //    for (auto data : std::span { (uint16_t*)data, size }) {
+    //        LL_SPI_TransmitData16(SPI2, data);
+    //        while (LL_SPI_IsActiveFlag_BSY(SPI2)) { }
+    //    }
     LL_DMA_SetDataLength(DMA_SPI2_TX_CH5, size);
     LL_DMA_SetMemoryAddress(DMA_SPI2_TX_CH5, uint32_t(data));
     LL_DMA_EnableChannel(DMA_SPI2_TX_CH5);
     waitDma();
 }
 
-void SPFD54124B::waitDma() const
-{
+void SPFD54124B::waitDma() const {
     while (!LL_DMA_IsActiveFlag_TC5(DMA1)) { }
     LL_DMA_ClearFlag_TC5(DMA1);
     LL_DMA_DisableChannel(DMA_SPI2_TX_CH5);
 }
 
-void SPFD54124B::waitSpi() const
-{
+void SPFD54124B::waitSpi() const {
     while (LL_SPI_GetTxFIFOLevel(SPI2) == LL_SPI_TX_FIFO_FULL)
         continue;
 }
 
-void SPFD54124B::sendDatSft(uint8_t data)
-{
+void SPFD54124B::sendDatSft(uint8_t data) {
     // Включаем контроллер дисплея (низкий уровень активный)
     CS_Pin->BSRR = RES_CS;
     // Первый бит высокий уровень - данные
@@ -185,8 +184,7 @@ void SPFD54124B::sendDatSft(uint8_t data)
     CS_Pin->BSRR = SET_CS;
 }
 
-void SPFD54124B::sendCmdSft(uint8_t data)
-{
+void SPFD54124B::sendCmdSft(uint8_t data) {
     // Включаем контроллер дисплея (низкий уровень активный)
     CS_Pin->BSRR = RES_CS;
     // Первый бит низкий уровень - команда
@@ -207,8 +205,7 @@ void SPFD54124B::sendCmdSft(uint8_t data)
     CS_Pin->BSRR = SET_CS;
 }
 
-void SPFD54124B::setWindow(const Rect& rect)
-{
+void SPFD54124B::setWindow(const Rect& rect) {
     uint16_t setup[] {
         CMD::CASET,
         DATA,

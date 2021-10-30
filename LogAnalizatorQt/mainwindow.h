@@ -1,9 +1,11 @@
-#ifndef DEMOAPP_H
-#define DEMOAPP_H
+#pragma once
 
 #include "usbdevice.h"
 #include <QMainWindow>
 
+class Model;
+
+class Wire;
 namespace Ui {
 class MainWindow;
 }
@@ -18,7 +20,10 @@ public:
 private:
     Ui::MainWindow* ui;
     UsbDevice* usbDevice;
+    class Model* model;
+    class Wire* wires[8];
     void start();
-};
 
-#endif // DEMOAPP_H
+    void saveSettings() { }
+    void loadSettings() { }
+};

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>293</width>
-    <height>258</height>
+    <width>1198</width>
+    <height>933</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,6 +15,9 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="1">
+     <widget class="QComboBox" name="cbxSamples"/>
+    </item>
     <item row="0" column="0">
      <widget class="QLabel" name="label">
       <property name="text">
@@ -29,14 +32,17 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="1">
-     <widget class="QComboBox" name="cbxSamples"/>
-    </item>
     <item row="2" column="1">
      <widget class="QComboBox" name="cbxFreq"/>
     </item>
+    <item row="6" column="0" colspan="2">
+     <widget class="QWidget" name="widget" native="true"/>
+    </item>
     <item row="4" column="0" colspan="2">
-     <widget class="QPlainTextEdit" name="plainTextEdit"/>
+     <widget class="QTableView" name="tableView"/>
+    </item>
+    <item row="5" column="0" colspan="2">
+     <widget class="GraphicsView" name="graphicsView"/>
     </item>
    </layout>
   </widget>
@@ -45,7 +51,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>293</width>
+     <width>1198</width>
      <height>20</height>
     </rect>
    </property>
@@ -53,6 +59,13 @@
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>GraphicsView</class>
+   <extends>QGraphicsView</extends>
+   <header>graphicsview.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

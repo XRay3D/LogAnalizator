@@ -6,15 +6,21 @@ TEMPLATE = app
 QMAKE_CXXFLAGS += -std:c++latest
 
 SOURCES += \
+    graphicsview.cpp \
     main.cpp \
-    MainWindow.cpp \
-    usbdevice.cpp
+    mainwindow.cpp \
+    model.cpp \
+    usbdevice.cpp \
+    wire.cpp
 
 HEADERS  += \
-    MainWindow.h \
-    usbdevice.h
+    graphicsview.h \
+    mainwindow.h \
+    model.h \
+    usbdevice.h \
+    wire.h
 
 FORMS    += \
-    MainWindow.ui
+    mainwindow.ui
 
 include(HIDAPI.pri)

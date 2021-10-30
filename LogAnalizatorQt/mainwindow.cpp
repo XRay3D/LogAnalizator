@@ -1,7 +1,9 @@
-#include "MainWindow.h"
+#include "mainwindow.h"
+#include "model.h"
 #include "ui_MainWindow.h"
-#include <array>
+#include "wire.h"
 #include <QDebug>
+#include <array>
 
 static const unsigned char CHANNEL_COUNT = 8;
 static const int START_X_VALUE = 0;
@@ -11,15 +13,28 @@ static const unsigned char GRAPHS_GAP = 55;
 static const unsigned char ZOOM_OUT = 0;
 static const unsigned char ZOOM_IN = 1;
 static std::vector<double> const ScaleX; //шаги по оси х при мастабировании: 1, 3, 5, 10, 20
-static std::array const MainTimeMarkStep { 50, 100, 90, 150, 200, 200 };
-static std::array const SmallTimeMarkStep { 5, 10, 9, 15, 20, 20 };
+static std::array const MainTimeMarkStep {
+    50,
+    100,
+    90,
+    150,
+    200,
+    200,
+};
+static std::array const SmallTimeMarkStep {
+    5,
+    10,
+    9,
+    15,
+    20,
+    20,
+};
 static std::vector<double> const DescretTime; //мкс
 static std::vector<std::string> const TimeUnits; //частота 100 кГц; 400 кГц; 800 кГц; 1 МГц; 1,6 МГц; 2 МГц; 3 МГц; 4 МГц; 6 МГц; 8 МГц;
 
 //static std::vector<int> const SampleCount { 128, 256, 512, 1024, 2048, 4096 };
 static std::vector<std::string> const FreqStrings;
-static std::vector<unsigned char> const CaptureTimPsc { 23, 11, 9, 7, 5, 5, 3, 3, 3, 2 };
-static std::vector<unsigned char> const CaptureTimArr { 19, 9, 5, 5, 4, 3, 3, 2, 1, 1 };
+
 static std::vector<std::string> const TriggersString;
 static const int TRIGGER_NONE = 0;
 static const int TRIGGER_LOW_LEVEL = 1;
@@ -39,7 +54,7 @@ static const double TOOLS_ELEMENT_OPACITY = 0.0;
 static const std::string TOOLS_ELEMENT_COLOR;
 static const std::string INTERFACE_TEXT_COLOR;
 
-static const unsigned char USB_CMD_PACKET_SIZE = 64;
+static const unsigned char USB_CMD_PACKET_SIZE = 64; // because first is REPORT_ID
 //static const unsigned char USB_REPORT_ID_POS = 0;
 //static const unsigned char USB_CMD_POS = 1;
 
@@ -49,35 +64,28 @@ static const unsigned char USB_CMD_START_CAPTURE = 0x55;
 #pragma pack(push, 1)
 union CAPTURE {
     struct {
-        uint8_t USB_REPORT_ID_POS;
-        uint8_t USB_CMD_POS;
-        uint8_t CAPTURE_SYNC_OFFSET;
-        uint8_t CAPTURE_TIM_PSC_OFFSET;
-        uint8_t CAPTURE_TIM_ARR_OFFSET;
-        uint16_t CAPTURE_SAMPLE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_ENABLE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_MODE_OFFSET;
-        uint8_t CAPTURE_TRIGGER_SET_OFFSET;
-        uint8_t CAPTURE_TRIGGER_MASK;
+        uint8_t USB_REPORT_ID;
+        uint8_t USB_CMD;
+        uint8_t SYNC;
+        uint16_t TIM_PSC;
+        uint32_t TIM_ARR;
+        uint16_t SAMPLE;
+        uint8_t TRIGGER_ENABLE;
+        uint8_t TRIGGER_MODE;
+        uint8_t TRIGGER_SET;
+        uint8_t TRIGGER_MASK;
     };
     uint8_t array[USB_CMD_PACKET_SIZE] {};
 };
 #pragma pack(pop)
-//static const unsigned char CAPTURE_SYNC_OFFSET = USB_CMD_POS + 1;
-//static const unsigned char CAPTURE_TIM_PSC_OFFSET = CAPTURE_SYNC_OFFSET + 1;
-//static const unsigned char CAPTURE_TIM_ARR_OFFSET = CAPTURE_TIM_PSC_OFFSET + 1;
-//static const unsigned char CAPTURE_SAMPLE_OFFSET = CAPTURE_TIM_ARR_OFFSET + 1;
-//static const unsigned char CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_SAMPLE_OFFSET + 2;
-//static const unsigned char CAPTURE_TRIGGER_MODE_OFFSET = CAPTURE_TRIGGER_ENABLE_OFFSET + 1;
-//static const unsigned char CAPTURE_TRIGGER_SET_OFFSET = CAPTURE_TRIGGER_MODE_OFFSET + 1;
 
-static const unsigned char CAPTURE_SYNC_INTERNAL = 0;
-static const unsigned char CAPTURE_MODE_EXTERNAL_CLK = 1;
-static const unsigned char CAPTURE_TRIGGER_BYTES_COUNT = 4;
-static const unsigned char CAPTURE_TRIGGER_DISABLE = 0;
-static const unsigned char CAPTURE_TRIGGER_ENABLE = 1;
-static const unsigned char CAPTURE_TRIGGER_MODE_CHANNELS = 0;
-static const unsigned char CAPTURE_TRIGGER_MODE_EXT_LINES = 1;
+static const unsigned char SYNC_INTERNAL = 0;
+static const unsigned char MODE_EXTERNAL_CLK = 1;
+static const unsigned char TRIGGER_BYTES_COUNT = 4;
+static const unsigned char TRIGGER_DISABLE = 0;
+static const unsigned char TRIGGER_ENABLE = 1;
+static const unsigned char TRIGGER_MODE_CHANNELS = 0;
+static const unsigned char TRIGGER_MODE_EXT_LINES = 1;
 
 static const unsigned char EXTRA_POINTS_COUNT_FOR_TRIGGER = 2;
 
@@ -99,70 +107,126 @@ bool USBDevDetected = false;
 
 #include <QToolBar>
 
+struct Freq {
+    QString Name;
+    uint16_t Prescaler;
+    uint32_t AutoReload;
+};
+
+Freq frequencies[] {
+    { "	100 кГц", 0, 799 },
+    { "	400 кГц", 0, 199 },
+    { "	800 кГц", 0, 99 },
+    { "	1 МГц", 0, 79 },
+    { "	2 МГц", 0, 39 },
+    { "	4 МГц", 0, 19 },
+    { "	5 МГц", 0, 15 },
+    { "	8 МГц", 0, 9 },
+    { "	10 МГц", 0, 7 },
+    { "	16 МГц", 0, 4 },
+    { "	20 МГц", 0, 3 },
+    { "	40 МГц", 0, 1 },
+};
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui { new Ui::MainWindow }
-    , usbDevice { new UsbDevice(this) }
-{
+    , usbDevice { new UsbDevice(this) } {
     ui->setupUi(this);
-    ui->cbxSamples->addItems({ "128", "256", "512", "1024", "2048", "4096" });
-    ui->cbxFreq->addItems({ "100 кГц", "400 кГц", "800 кГц", "1 МГц", "1,6 МГц", "2 МГц", "3 МГц", "4 МГц", "6 МГц", "8 МГц" });
+    ui->cbxSamples->addItems({
+        "128",
+        "256",
+        "512",
+        "1024",
+        "2048",
+        "4096",
+        "8192",
+        "16384",
+    });
+
+    for (auto&& freq : frequencies)
+        ui->cbxFreq->addItem(freq.Name);
+
     auto toolBar = addToolBar("");
     auto action = toolBar->addAction(QIcon::fromTheme({}), "start", this, &MainWindow::start);
+    action->setShortcut(Qt::Key_F1);
+    ui->tableView->setModel(model = new Model { ui->tableView });
 
+    ui->tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    ui->tableView->horizontalHeader()->setDefaultSectionSize(10);
+    ui->tableView->horizontalHeader()->setVisible(false);
+
+    ui->tableView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+    ui->graphicsView->setScene(new QGraphicsScene { ui->graphicsView });
+    for (int i {}; auto&& wire : wires) {
+        wire = new Wire(i++);
+        ui->graphicsView->scene()->addItem(wire);
+    }
     //connect(this, SIGNAL(toggle_leds_button_pressed()), plugNPlay, SLOT(toggle_leds()));
     //    connect(plugNPlay, SIGNAL(hid_comm_update(bool, int)), this, SLOT(update_gui(bool, int)));
     //    plugNPlay->PollUSB();
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     //disconnect(this, SIGNAL(toggle_leds_button_pressed()), plugNPlay, SLOT(toggle_leds()));
     //    disconnect(plugNPlay, SIGNAL(hid_comm_update(bool, int)), this, SLOT(update_gui(bool, int)));
     delete ui;
 }
 
-void MainWindow::start()
-{
+void MainWindow::start() {
     if (usbDevice->isConnected()) {
 
         CAPTURE capture;
-        capture.USB_REPORT_ID_POS = USB_CMD_ID;
-        capture.USB_CMD_POS = USB_CMD_START_CAPTURE;
+        capture.USB_REPORT_ID = USB_CMD_ID;
+        capture.USB_CMD = USB_CMD_START_CAPTURE;
 
         int Value = ui->cbxFreq->currentIndex();
-        capture.CAPTURE_SYNC_OFFSET = CAPTURE_SYNC_INTERNAL;
-        capture.CAPTURE_TIM_PSC_OFFSET = CaptureTimPsc[Value];
-        capture.CAPTURE_TIM_ARR_OFFSET = CaptureTimArr[Value];
+        capture.SYNC = SYNC_INTERNAL;
+        capture.TIM_PSC = frequencies[Value].Prescaler;
+        capture.TIM_ARR = frequencies[Value].AutoReload;
         DescretTimeIndex = Value;
 
-        capture.CAPTURE_SAMPLE_OFFSET = ui->cbxSamples->currentText().toUInt();
+        capture.SAMPLE = ui->cbxSamples->currentText().toUInt();
         if (0) { //TriggerActivationCheckBox->IsChecked == true) {
-            //            capture.CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_TRIGGER_ENABLE;
-            //            capture.CAPTURE_TRIGGER_MODE_OFFSET = CAPTURE_TRIGGER_MODE_CHANNELS;
-            //            for (int TrigByte = 0; TrigByte < CAPTURE_TRIGGER_BYTES_COUNT; TrigByte++) {
-            //                USBPacket[CAPTURE_TRIGGER_SET_OFFSET + TrigByte] = static_cast<unsigned char>((Array::IndexOf(TriggersString, Channels[2 * TrigByte + 1]->getTrigger()) << 4) | (Array::IndexOf(TriggersString, Channels[2 * TrigByte]->getTrigger())));
+            //            capture.TRIGGER_ENABLE = TRIGGER_ENABLE;
+            //            capture.TRIGGER_MODE = TRIGGER_MODE_CHANNELS;
+            //            for (int TrigByte = 0; TrigByte < TRIGGER_BYTES_COUNT; TrigByte++) {
+            //                USBPacket[TRIGGER_SET + TrigByte] = static_cast<unsigned char>((Array::IndexOf(TriggersString, Channels[2 * TrigByte + 1]->getTrigger()) << 4) | (Array::IndexOf(TriggersString, Channels[2 * TrigByte]->getTrigger())));
             //            }
-            //            if ((capture.CAPTURE_TRIGGER_SET_OFFSET == 0) && (USBPacket[CAPTURE_TRIGGER_SET_OFFSET + 1] == 0) && (USBPacket[CAPTURE_TRIGGER_SET_OFFSET + 2] == 0) && (USBPacket[CAPTURE_TRIGGER_SET_OFFSET + 3] == 0)) {
-            //                capture.CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_TRIGGER_DISABLE;
+            //            if ((capture.TRIGGER_SET == 0) && (USBPacket[TRIGGER_SET + 1] == 0) && (USBPacket[TRIGGER_SET + 2] == 0) && (USBPacket[TRIGGER_SET + 3] == 0)) {
+            //                capture.TRIGGER_ENABLE = TRIGGER_DISABLE;
             //            }
         } else {
-            capture.CAPTURE_TRIGGER_ENABLE_OFFSET = CAPTURE_TRIGGER_DISABLE;
+            capture.TRIGGER_ENABLE = TRIGGER_DISABLE;
         }
 
-        int USBSuccess = usbDevice->Write({ capture.array });
-        ui->plainTextEdit->appendPlainText(QString::number(USBSuccess));
+        [[maybe_unused]] int USBSuccess = usbDevice->Write({ capture.array });
 
-        std::vector<unsigned char> InputData(capture.CAPTURE_SAMPLE_OFFSET);
+        std::vector<uint8_t> InputData(capture.SAMPLE);
 
-        Value = capture.CAPTURE_SAMPLE_OFFSET / USB_CMD_PACKET_SIZE;
+        Value = capture.SAMPLE / USB_CMD_PACKET_SIZE;
 
-        for (int i = 0; i < Value; i++) {
-            USBSuccess = usbDevice->Read({ InputData.data() + i * USB_CMD_PACKET_SIZE, USB_CMD_PACKET_SIZE });
-            ui->plainTextEdit->appendPlainText(QString::number(USBSuccess));
+        uint16_t ctr {};
+        while (ctr < capture.SAMPLE && USBSuccess > 0) {
+            uint8_t data[USB_CMD_PACKET_SIZE + 1];
+            USBSuccess = usbDevice->Read(data);
+            std::memcpy(InputData.data() + ctr, data + 1, USB_CMD_PACKET_SIZE);
+            ctr += USB_CMD_PACKET_SIZE;
+            qDebug() << 1 << ctr;
         }
 
-        qDebug() << QByteArray((const char*)InputData.data(), InputData.size()).toHex();
+        if (USBSuccess == -1)
+            usbDevice->Close();
+
+        for (auto&& wire : wires) {
+            wire->setData(InputData);
+        }
+
+        auto rect { ui->graphicsView->scene()->itemsBoundingRect() };
+        ui->graphicsView->setSceneRect(rect);
+        //        ui->graphicsView->fitInView(rect);
+        model->setData(std::move(InputData));
 
         //        std::vector<PointCollection> NewChannelsData(CHANNEL_COUNT);
         //        for (int chnl = 0; chnl < CHANNEL_COUNT; chnl++) {

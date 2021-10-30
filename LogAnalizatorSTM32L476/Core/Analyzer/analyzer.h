@@ -1,32 +1,79 @@
-#ifndef __ANALYZER_H
-#define __ANALYZER_H
+#pragma once
 
-#include "stm32l4xx.h"
+#include <stdint.h>
 
-#define CAPTURE_GPIO GPIOA
-#define CAPTURE_MASK 0xFF
+#pragma pack(push, 1)
 
-#define LINE_INTERRUPT_MASK CAPTURE_MASK
+union CaptureT {
+    struct {
+        uint8_t USB_REPORT_ID_POS;
+        uint8_t USB_CMD_POS;
+        uint8_t SYNC;
+        uint16_t TIM_PSC;
+        uint32_t TIM_ARR;
+        uint16_t SAMPLE;
+        uint8_t TRIGGER_ENABLE;
+        uint8_t TRIGGER_MODE;
+        uint8_t TRIGGER_SET;
+        uint8_t TRIGGER_MASK;
+    };
+    uint8_t array[64] {};
+};
+#pragma pack(pop)
 
-//РџР”Рџ (DMA)
-#define DMA_FOR_CAPTURE DMA1
-//#define DMA_FOR_CAPTURE_ENR AHBENR
-//#define DMA_FOR_CAPTURE_CLK_EN RCC_AHBENR_DMAEN
-#define DMA_CAPTURE_CH DMA1_Channel6
-#define DMA_CAPTURE_IRQ DMA1_Channel6_IRQn
+enum CAPTURE : uint8_t {
+    SYNC_INTERNAL = 0,
+    SYNC_EXTERNAL = 1,
+    TRIG_BYTES_COUNT = 4,
+    TRIG_DISABLE = 0,
+    TRIG_ENABLE = 1,
+    TRIG_MODE_CHANNELS = 0,
+    TRIG_MODE_EXT_LINES = 1,
+    TRIG_EXT_BYTES_COUNT = 1,
+};
 
-//С‚Р°Р№РјРµСЂ РґР»СЏ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёР№ DMA
-#define CAPTURE_TIMER TIM1
-//#define CAPTURE_TIMER_ENR APB1ENR
-//#define CAPTURE_TIMER_CLK_EN RCC_APB1ENR_TIM3EN
-#define CAPTURE_TIMER_IRQ TIM1_IRQn
+enum TRIGGER : uint8_t {
+    NONE = 0,
+    LOW_LEVEL = 1,
+    HIGH_LEVEL = 2,
+    RISING_EDGE = 3,
+    FALLING_EDGE = 4,
+    ANY_EDGE = 5,
+};
 
-#define CAPTURE_BUFFER_SIZE 4096 /*0x1000*/
-#define CHANNELS_COUNT 8
+enum {
+    USB_MESSAGE_LENGTH = 64, //because first is REPORT_ID //64,
+    CAPTURE_BUFFER_SIZE = 16384 + 1
+};
 
-#define CAPTURE_COMPLETE (1 << 0)
+enum class Status : uint8_t {
+    IDLE,
+    CAPTURE,
+    COMPLETE,
+    ERROR,
+};
 
-void LogAnaliz(void* lcd);
-void AnalyzerInit();
+class AnalyzerUSB {
 
-#endif //__ANALYZER_H
+public:
+    void pool(void* lcd_);
+    void Init();
+    uint8_t* GetPacket();
+    bool IsReadyToSend();
+    int8_t TransmitData(uint8_t* data);
+    void ReceiveData(uint8_t* data);
+
+    Status status() const;
+    void setStatus(volatile Status status);
+
+    uint16_t EdgeTrigChnls;
+    uint16_t LevelTrigValue;
+    uint16_t LevelTrigChnls;
+
+private:
+    volatile Status status_ { Status::IDLE };
+    uint8_t usbData[USB_MESSAGE_LENGTH] {};
+    uint8_t CaptureBuff[CAPTURE_BUFFER_SIZE + 1] {};
+};
+
+inline AnalyzerUSB Analyzer;
