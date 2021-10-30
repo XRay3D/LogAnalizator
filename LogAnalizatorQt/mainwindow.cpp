@@ -1,65 +1,16 @@
 #include "mainwindow.h"
 #include "model.h"
-#include "ui_MainWindow.h"
+#include "ui_mainwindow.h"
 #include "wire.h"
 #include <QDebug>
+#include <QSettings>
 #include <array>
 
-static const unsigned char CHANNEL_COUNT = 8;
-static const int START_X_VALUE = 0;
-static const unsigned char FRAME_UPDATE_PART = 3;
-static const int POINTS_COUNT = 512;
-static const unsigned char GRAPHS_GAP = 55;
-static const unsigned char ZOOM_OUT = 0;
-static const unsigned char ZOOM_IN = 1;
-static std::vector<double> const ScaleX; //шаги по оси х при мастабировании: 1, 3, 5, 10, 20
-static std::array const MainTimeMarkStep {
-    50,
-    100,
-    90,
-    150,
-    200,
-    200,
+enum {
+    USB_CMD_ID = 1,
+    USB_CMD_START_CAPTURE = 0x55,
+    USB_CMD_PACKET_SIZE = 64
 };
-static std::array const SmallTimeMarkStep {
-    5,
-    10,
-    9,
-    15,
-    20,
-    20,
-};
-static std::vector<double> const DescretTime; //мкс
-static std::vector<std::string> const TimeUnits; //частота 100 кГц; 400 кГц; 800 кГц; 1 МГц; 1,6 МГц; 2 МГц; 3 МГц; 4 МГц; 6 МГц; 8 МГц;
-
-//static std::vector<int> const SampleCount { 128, 256, 512, 1024, 2048, 4096 };
-static std::vector<std::string> const FreqStrings;
-
-static std::vector<std::string> const TriggersString;
-static const int TRIGGER_NONE = 0;
-static const int TRIGGER_LOW_LEVEL = 1;
-static const int TRIGGER_HIGH_LEVEL = 2;
-static const int TRIGGER_RISING_EDGE = 3;
-static const int TRIGGER_FALLING_EDGE = 4;
-static const int TRIGGER_ANY_EDGE = 5;
-
-static const std::string TriggerHelp;
-
-static const int PULSE_HEIGHT = 30;
-static const int START_Y = 10;
-
-static const int MAIN_TIME_MARK_HEIGHT = 20;
-static const int SMALL_TIME_MARK_HEIGHT = MAIN_TIME_MARK_HEIGHT / 2;
-static const double TOOLS_ELEMENT_OPACITY = 0.0;
-static const std::string TOOLS_ELEMENT_COLOR;
-static const std::string INTERFACE_TEXT_COLOR;
-
-static const unsigned char USB_CMD_PACKET_SIZE = 64; // because first is REPORT_ID
-//static const unsigned char USB_REPORT_ID_POS = 0;
-//static const unsigned char USB_CMD_POS = 1;
-
-static const unsigned char USB_CMD_ID = 1;
-static const unsigned char USB_CMD_START_CAPTURE = 0x55;
 
 #pragma pack(push, 1)
 union CAPTURE {
@@ -72,38 +23,11 @@ union CAPTURE {
         uint16_t SAMPLE;
         uint8_t TRIGGER_ENABLE;
         uint8_t TRIGGER_MODE;
-        uint8_t TRIGGER_SET;
-        uint8_t TRIGGER_MASK;
+        uint8_t TRIGGER_SET[8];
     };
     uint8_t array[USB_CMD_PACKET_SIZE] {};
 };
 #pragma pack(pop)
-
-static const unsigned char SYNC_INTERNAL = 0;
-static const unsigned char MODE_EXTERNAL_CLK = 1;
-static const unsigned char TRIGGER_BYTES_COUNT = 4;
-static const unsigned char TRIGGER_DISABLE = 0;
-static const unsigned char TRIGGER_ENABLE = 1;
-static const unsigned char TRIGGER_MODE_CHANNELS = 0;
-static const unsigned char TRIGGER_MODE_EXT_LINES = 1;
-
-static const unsigned char EXTRA_POINTS_COUNT_FOR_TRIGGER = 2;
-
-int End_X_Value = 900;
-int FrameStartPoint = 0;
-int FramePoints = 0;
-int UpdatePoints = 0;
-int DescretTimeIndex = 0;
-int ScaleXIndex = 0;
-//int SamplesToCapture = SampleCount[2];
-//std::vector<AnalyzerChannel> Channels;
-
-bool MeasuringActive = false;
-bool LineActive = false;
-//std::shared_ptr<Polyline> PanPolyline = std::make_shared<Polyline>();
-//std::shared_ptr<Polyline> ToolPolyline = nullptr;
-bool USBDevDetected = false;
-//std::shared_ptr<ObservableCollection<IHardwareInterface>> IAnalyzers;
 
 #include <QToolBar>
 
@@ -128,6 +52,8 @@ Freq frequencies[] {
     { "	40 МГц", 0, 1 },
 };
 
+QAction* Trigger;
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui { new Ui::MainWindow }
@@ -147,9 +73,45 @@ MainWindow::MainWindow(QWidget* parent)
     for (auto&& freq : frequencies)
         ui->cbxFreq->addItem(freq.Name);
 
-    auto toolBar = addToolBar("");
-    auto action = toolBar->addAction(QIcon::fromTheme({}), "start", this, &MainWindow::start);
-    action->setShortcut(Qt::Key_F1);
+    {
+        auto toolBar = addToolBar("");
+        auto action = toolBar->addAction(QIcon::fromTheme({}), "Start", this, &MainWindow::start);
+        action->setShortcut(Qt::Key_F1);
+
+        Trigger = toolBar->addAction(QIcon::fromTheme({}), "Triggers" /*, this, &MainWindow::start*/);
+        Trigger->setCheckable(true);
+
+        action = toolBar->addAction(QIcon::fromTheme({}), "Analiz" /*, this, &MainWindow::start*/);
+        //        action->setShortcut(Qt::Key_F1);
+    }
+
+    enum TRIGGER : uint8_t {
+        NONE,
+        LOW_LEVEL,
+        HIGH_LEVEL,
+        RISING_EDGE,
+        FALLING_EDGE,
+        ANY_EDGE,
+    };
+
+    QStringList Trigger {
+        "Х - триггер неактивен",
+        "0 - триггер по низкому уровню",
+        "1 - триггер по высокому уровню",
+        "< - триггер по переднему фронту",
+        "> - триггер по заднему фронту",
+        "<> - триггер по любому фронту",
+    };
+
+    ui->cbxTrig0->addItems(Trigger);
+    ui->cbxTrig1->addItems(Trigger);
+    ui->cbxTrig2->addItems(Trigger);
+    ui->cbxTrig3->addItems(Trigger);
+    ui->cbxTrig4->addItems(Trigger);
+    ui->cbxTrig5->addItems(Trigger);
+    ui->cbxTrig6->addItems(Trigger);
+    ui->cbxTrig7->addItems(Trigger);
+
     ui->tableView->setModel(model = new Model { ui->tableView });
 
     ui->tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
@@ -166,11 +128,14 @@ MainWindow::MainWindow(QWidget* parent)
     //connect(this, SIGNAL(toggle_leds_button_pressed()), plugNPlay, SLOT(toggle_leds()));
     //    connect(plugNPlay, SIGNAL(hid_comm_update(bool, int)), this, SLOT(update_gui(bool, int)));
     //    plugNPlay->PollUSB();
+
+    loadSettings();
 }
 
 MainWindow::~MainWindow() {
     //disconnect(this, SIGNAL(toggle_leds_button_pressed()), plugNPlay, SLOT(toggle_leds()));
     //    disconnect(plugNPlay, SIGNAL(hid_comm_update(bool, int)), this, SLOT(update_gui(bool, int)));
+    saveSettings();
     delete ui;
 }
 
@@ -182,23 +147,35 @@ void MainWindow::start() {
         capture.USB_CMD = USB_CMD_START_CAPTURE;
 
         int Value = ui->cbxFreq->currentIndex();
-        capture.SYNC = SYNC_INTERNAL;
+        capture.SYNC = 0;
         capture.TIM_PSC = frequencies[Value].Prescaler;
         capture.TIM_ARR = frequencies[Value].AutoReload;
-        DescretTimeIndex = Value;
 
         capture.SAMPLE = ui->cbxSamples->currentText().toUInt();
-        if (0) { //TriggerActivationCheckBox->IsChecked == true) {
-            //            capture.TRIGGER_ENABLE = TRIGGER_ENABLE;
-            //            capture.TRIGGER_MODE = TRIGGER_MODE_CHANNELS;
-            //            for (int TrigByte = 0; TrigByte < TRIGGER_BYTES_COUNT; TrigByte++) {
-            //                USBPacket[TRIGGER_SET + TrigByte] = static_cast<unsigned char>((Array::IndexOf(TriggersString, Channels[2 * TrigByte + 1]->getTrigger()) << 4) | (Array::IndexOf(TriggersString, Channels[2 * TrigByte]->getTrigger())));
-            //            }
-            //            if ((capture.TRIGGER_SET == 0) && (USBPacket[TRIGGER_SET + 1] == 0) && (USBPacket[TRIGGER_SET + 2] == 0) && (USBPacket[TRIGGER_SET + 3] == 0)) {
-            //                capture.TRIGGER_ENABLE = TRIGGER_DISABLE;
-            //            }
+        capture.TRIGGER_ENABLE = Trigger->isChecked();
+        if (capture.TRIGGER_ENABLE) {
+            capture.TRIGGER_MODE = 8;
+            capture.TRIGGER_SET[0] = ui->cbxTrig0->currentIndex();
+            capture.TRIGGER_SET[1] = ui->cbxTrig1->currentIndex();
+            capture.TRIGGER_SET[2] = ui->cbxTrig2->currentIndex();
+            capture.TRIGGER_SET[3] = ui->cbxTrig3->currentIndex();
+            capture.TRIGGER_SET[4] = ui->cbxTrig4->currentIndex();
+            capture.TRIGGER_SET[5] = ui->cbxTrig5->currentIndex();
+            capture.TRIGGER_SET[6] = ui->cbxTrig6->currentIndex();
+            capture.TRIGGER_SET[7] = ui->cbxTrig7->currentIndex();
+            if (capture.TRIGGER_SET[0]
+                || capture.TRIGGER_SET[1]
+                || capture.TRIGGER_SET[2]
+                || capture.TRIGGER_SET[3]
+                || capture.TRIGGER_SET[4]
+                || capture.TRIGGER_SET[5]
+                || capture.TRIGGER_SET[6]
+                || capture.TRIGGER_SET[7]) {
+            } else {
+                capture.TRIGGER_ENABLE = 0;
+            }
         } else {
-            capture.TRIGGER_ENABLE = TRIGGER_DISABLE;
+            capture.TRIGGER_ENABLE = 0;
         }
 
         [[maybe_unused]] int USBSuccess = usbDevice->Write({ capture.array });
@@ -301,6 +278,56 @@ void MainWindow::start() {
         //        ScaleXIndex = 1;
         //        Zooming(ZOOM_OUT);
     }
+}
+
+void MainWindow::saveSettings() {
+    QSettings settings;
+    settings.beginGroup("MainWindow");
+    settings.setValue("State", saveState());
+    settings.setValue("Geometry", saveGeometry());
+    settings.endGroup();
+
+    settings.beginGroup("Trig");
+    settings.setValue("Trigger", Trigger->isChecked());
+    settings.setValue("cbxTrig0", ui->cbxTrig0->currentIndex());
+    settings.setValue("cbxTrig1", ui->cbxTrig1->currentIndex());
+    settings.setValue("cbxTrig2", ui->cbxTrig2->currentIndex());
+    settings.setValue("cbxTrig3", ui->cbxTrig3->currentIndex());
+    settings.setValue("cbxTrig4", ui->cbxTrig4->currentIndex());
+    settings.setValue("cbxTrig5", ui->cbxTrig5->currentIndex());
+    settings.setValue("cbxTrig6", ui->cbxTrig6->currentIndex());
+    settings.setValue("cbxTrig7", ui->cbxTrig7->currentIndex());
+    settings.endGroup();
+
+    settings.beginGroup("Cap");
+    settings.setValue("cbxFreq", ui->cbxFreq->currentIndex());
+    settings.setValue("cbxSamples", ui->cbxSamples->currentIndex());
+    settings.endGroup();
+}
+
+void MainWindow::loadSettings() {
+    QSettings settings;
+    settings.beginGroup("MainWindow");
+    restoreState(settings.value("State").toByteArray());
+    restoreGeometry(settings.value("Geometry").toByteArray());
+    settings.endGroup();
+
+    settings.beginGroup("Trig");
+    Trigger->setChecked(settings.value("Trigger").toBool());
+    ui->cbxTrig0->setCurrentIndex(settings.value("cbxTrig0").toUInt());
+    ui->cbxTrig1->setCurrentIndex(settings.value("cbxTrig1").toUInt());
+    ui->cbxTrig2->setCurrentIndex(settings.value("cbxTrig2").toUInt());
+    ui->cbxTrig3->setCurrentIndex(settings.value("cbxTrig3").toUInt());
+    ui->cbxTrig4->setCurrentIndex(settings.value("cbxTrig4").toUInt());
+    ui->cbxTrig5->setCurrentIndex(settings.value("cbxTrig5").toUInt());
+    ui->cbxTrig6->setCurrentIndex(settings.value("cbxTrig6").toUInt());
+    ui->cbxTrig7->setCurrentIndex(settings.value("cbxTrig7").toUInt());
+    settings.endGroup();
+
+    settings.beginGroup("Cap");
+    ui->cbxFreq->setCurrentIndex(settings.value("cbxFreq").toUInt());
+    ui->cbxSamples->setCurrentIndex(settings.value("cbxSamples").toUInt());
+    settings.endGroup();
 }
 
 //void DemoApp::update_gui(bool isConnected, int potentiometerValue) {

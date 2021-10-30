@@ -6,16 +6,15 @@
 
 union CaptureT {
     struct {
-        uint8_t USB_REPORT_ID_POS;
-        uint8_t USB_CMD_POS;
+        uint8_t USB_REPORT_ID;
+        uint8_t USB_CMD;
         uint8_t SYNC;
         uint16_t TIM_PSC;
         uint32_t TIM_ARR;
         uint16_t SAMPLE;
         uint8_t TRIGGER_ENABLE;
         uint8_t TRIGGER_MODE;
-        uint8_t TRIGGER_SET;
-        uint8_t TRIGGER_MASK;
+        uint8_t TRIGGER_SET[8];
     };
     uint8_t array[64] {};
 };
@@ -24,7 +23,6 @@ union CaptureT {
 enum CAPTURE : uint8_t {
     SYNC_INTERNAL = 0,
     SYNC_EXTERNAL = 1,
-    TRIG_BYTES_COUNT = 4,
     TRIG_DISABLE = 0,
     TRIG_ENABLE = 1,
     TRIG_MODE_CHANNELS = 0,

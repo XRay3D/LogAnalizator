@@ -59,68 +59,55 @@ void AnalyzerUSB::pool(void* lcd_) {
         CAPTURE_TIMER->CNT = CAPTURE_TIMER->ARR = Capture->TIM_ARR;
         CAPTURE_TIMER->DIER = TIM_DIER_UDE;
 
-        if (0 && Capture->TRIGGER_ENABLE == CAPTURE::TRIG_ENABLE) {
+        if (Capture->TRIGGER_ENABLE == CAPTURE::TRIG_ENABLE) {
             LevelTrigValue = 0;
             LevelTrigChnls = 0;
             CLEAR_BIT(EXTI->RTSR1, LINE_INTERRUPT_MASK);
             CLEAR_BIT(EXTI->FTSR1, LINE_INTERRUPT_MASK);
-            uint8_t OnlyLevelTrigger = 1;
-            uint8_t TrigSetBytes = CAPTURE::TRIG_BYTES_COUNT;
-            uint8_t ChnlNumOffset = 0;
+
             uint16_t InterruptMask = CAPTURE_MASK;
+            bool OnlyLevelTrigger { true };
 
-            for (uint8_t TrigByte = 0; TrigByte < TrigSetBytes; TrigByte++) {
-                uint8_t TrigSettings = Capture->TRIGGER_MASK;
-
-                for (uint8_t ChnlPart = 0; ChnlPart < 2; ChnlPart++) {
-                    uint8_t ChnlNum = 2 * TrigByte + ChnlPart + ChnlNumOffset;
-                    uint8_t ChnlTrigger = (TrigSettings >> (4 * ChnlPart)) & 0x0F;
-
-                    if (ChnlTrigger != TRIGGER::NONE) {
-                        switch (ChnlTrigger) {
-                        case TRIGGER::LOW_LEVEL:
-                            LevelTrigChnls |= 1 << ChnlNum;
-                            break;
-
-                        case TRIGGER::HIGH_LEVEL:
-                            LevelTrigValue |= 1 << ChnlNum;
-                            LevelTrigChnls |= 1 << ChnlNum;
-                            break;
-
-                        case TRIGGER::RISING_EDGE:
-                            EXTI->RTSR1 |= 1 << ChnlNum;
-                            OnlyLevelTrigger = 0;
-                            break;
-
-                        case TRIGGER::FALLING_EDGE:
-                            EXTI->FTSR1 |= 1 << ChnlNum;
-                            OnlyLevelTrigger = 0;
-                            break;
-
-                        case TRIGGER::ANY_EDGE:
-                            EXTI->RTSR1 |= 1 << ChnlNum;
-                            EXTI->FTSR1 |= 1 << ChnlNum;
-                            OnlyLevelTrigger = 0;
-                            break;
-
-                        default:
-                            break;
-                        }
+            for (uint8_t ChnlNum {}; auto ChnlTrigger : Capture->TRIGGER_SET) {
+                if (ChnlTrigger != TRIGGER::NONE) {
+                    switch (ChnlTrigger) {
+                    case TRIGGER::LOW_LEVEL:
+                        LevelTrigChnls |= 1 << ChnlNum;
+                        break;
+                    case TRIGGER::HIGH_LEVEL:
+                        LevelTrigValue |= 1 << ChnlNum;
+                        LevelTrigChnls |= 1 << ChnlNum;
+                        break;
+                    case TRIGGER::RISING_EDGE:
+                        EXTI->RTSR1 |= 1 << ChnlNum;
+                        OnlyLevelTrigger = false;
+                        break;
+                    case TRIGGER::FALLING_EDGE:
+                        EXTI->FTSR1 |= 1 << ChnlNum;
+                        OnlyLevelTrigger = false;
+                        break;
+                    case TRIGGER::ANY_EDGE:
+                        EXTI->RTSR1 |= 1 << ChnlNum;
+                        EXTI->FTSR1 |= 1 << ChnlNum;
+                        OnlyLevelTrigger = false;
+                        break;
+                    default:
+                        break;
                     }
                 }
+                ++ChnlNum;
             }
 
             if (OnlyLevelTrigger == 1) { //у всех каналов триггеры по уровню
                 while ((CAPTURE_GPIO->IDR & LevelTrigChnls) != LevelTrigValue) { }
                 CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
             } else {
-                EdgeTrigChnls = EXTI->RTSR1;
-                EdgeTrigChnls = (EdgeTrigChnls | EXTI->FTSR1) & InterruptMask;
+                EdgeTrigChnls = (EXTI->RTSR1 | EXTI->FTSR1) & InterruptMask;
                 EXTI->IMR1 |= EdgeTrigChnls;
+                SET_BIT(EXTI->PR1, Analyzer.EdgeTrigChnls);
             }
         } else {
             CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
-            lcd.clear();
         }
 
         lcd.print("Wait", { 0, y += 8 }, White);
@@ -215,8 +202,7 @@ int8_t AnalyzerUSB::TransmitData(uint8_t* data) {
 }
 
 extern "C" void EXTI_LogAnalizer() {
-    if (((EXTI->PR1 & Analyzer.EdgeTrigChnls) == Analyzer.EdgeTrigChnls)
-        && ((CAPTURE_GPIO->IDR & Analyzer.LevelTrigChnls) == Analyzer.LevelTrigValue)) {
+    if (((EXTI->PR1 & Analyzer.EdgeTrigChnls) == Analyzer.EdgeTrigChnls) && ((CAPTURE_GPIO->IDR & Analyzer.LevelTrigChnls) == Analyzer.LevelTrigValue)) {
         LL_TIM_EnableCounter(TIM5);
         CLEAR_BIT(EXTI->IMR1, Analyzer.EdgeTrigChnls);
     }

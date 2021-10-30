@@ -22,6 +22,7 @@ void UsbDevice::PollUSB() {
     if (!isConnected_) {
         device = hid_open(DEV_VID, DEV_PID, nullptr);
         if (device) {
+            //            hid_set_nonblocking(device, true);
             isConnected_ = true;
             timer->stop();
         }
@@ -40,7 +41,7 @@ void UsbDevice::Close() {
 }
 
 int UsbDevice::Read(std::span<uint8_t> data) {
-    auto ret = hid_read_timeout(device, data.data(), data.size(), 100);
+    auto ret = hid_read(device, data.data(), data.size());
     qDebug() << "Read ErrorMessage: " << ret << QString::fromWCharArray(hid_error(device));
     return ret; //> 0; // ret != -1;
 }

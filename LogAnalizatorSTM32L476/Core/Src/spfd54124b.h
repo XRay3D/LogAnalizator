@@ -5,16 +5,14 @@
 
 struct Color {
     uint8_t R, G, B;
-    Color* Set(uint8_t r, uint8_t g, uint8_t b)
-    {
+    Color* Set(uint8_t r, uint8_t g, uint8_t b) {
         R = r;
         G = g;
         B = b;
         return this;
     }
 
-    auto getData() const
-    {
+    auto getData() const {
         struct {
             uint16_t data[3];
         } data { {
@@ -73,8 +71,7 @@ class Buffer {
     uint16_t size_ {};
 
 public:
-    void append(uint16_t val)
-    {
+    void append(uint16_t val) {
         if (size_ < MaxSize)
             data_[size_++] = val;
     }
@@ -98,7 +95,7 @@ protected:
     void init();
     template <size_t N>
     void sendDma(const uint16_t (&data)[N]) const { sendDma(data, N); }
-    void sendDma(const void* data, uint32_t size) const;
+    void sendDma(const uint16_t* data, uint32_t size) const;
 
     void waitDma() const;
     void waitSpi() const;

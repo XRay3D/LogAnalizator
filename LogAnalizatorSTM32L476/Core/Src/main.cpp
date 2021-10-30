@@ -32,6 +32,7 @@ int main(void) {
     MX_TIM5_Init();
 
     Nokia1616_LCD lcd;
+    lcd.print("Ready", {}, White);
 
     Analyzer.Init();
 

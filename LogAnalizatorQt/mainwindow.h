@@ -24,6 +24,6 @@ private:
     class Wire* wires[8];
     void start();
 
-    void saveSettings() { }
-    void loadSettings() { }
+    void saveSettings();
+    void loadSettings();
 };

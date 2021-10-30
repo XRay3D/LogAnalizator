@@ -139,13 +139,10 @@ void SPFD54124B::sendCmd(uint8_t data) {
     waitSpi();
 }
 
-void SPFD54124B::sendDma(const void* data, uint32_t size) const {
+void SPFD54124B::sendDma(const uint16_t* data, uint32_t size) const {
     if (!size)
         return;
-    //    for (auto data : std::span { (uint16_t*)data, size }) {
-    //        LL_SPI_TransmitData16(SPI2, data);
-    //        while (LL_SPI_IsActiveFlag_BSY(SPI2)) { }
-    //    }
+
     LL_DMA_SetDataLength(DMA_SPI2_TX_CH5, size);
     LL_DMA_SetMemoryAddress(DMA_SPI2_TX_CH5, uint32_t(data));
     LL_DMA_EnableChannel(DMA_SPI2_TX_CH5);
