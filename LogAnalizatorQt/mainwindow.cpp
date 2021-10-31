@@ -37,22 +37,27 @@ struct Freq {
     uint32_t AutoReload;
 };
 
-Freq frequencies[] {
-    { "	100 кГц", 0, 799 },
-    { "	400 кГц", 0, 199 },
-    { "	800 кГц", 0, 99 },
-    { "	1 МГц", 0, 79 },
-    { "	2 МГц", 0, 39 },
-    { "	4 МГц", 0, 19 },
-    { "	5 МГц", 0, 15 },
-    { "	8 МГц", 0, 9 },
-    { "	10 МГц", 0, 7 },
-    { "	16 МГц", 0, 4 },
-    { "	20 МГц", 0, 3 },
-    { "	40 МГц", 0, 1 },
-};
+//Freq frequencies[] {
+//    { "	100 кГц", 0, 799 },
+//    { "	400 кГц", 0, 199 },
+//    { "	800 кГц", 0, 99 },
+//    { "	1 МГц", 0, 79 },
+//    { "	2 МГц", 0, 39 },
+//    { "	4 МГц", 0, 19 },
+//    { "	5 МГц", 0, 15 },
+//    { "	8 МГц", 0, 9 },
+//    { "	10 МГц", 0, 7 },
+//    { "	16 МГц", 0, 4 },
+//    { "	20 МГц", 0, 3 },
+//    { "	40 МГц", 0, 1 },
+//};
+
+std::vector<Freq> frequencies;
 
 QAction* Trigger;
+
+auto operator""_kHz(unsigned long long val) { return val * 1000; }
+auto operator""_MHz(unsigned long long val) { return val * 1000000; }
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -69,6 +74,24 @@ MainWindow::MainWindow(QWidget* parent)
         "8192",
         "16384",
     });
+
+    frequencies.reserve(1000);
+
+    for (int freq = 100_kHz; freq <= 20_MHz; freq += 100_kHz) {
+        bool ok {};
+        for (int pre {}; pre < 80; ++pre) {
+            auto tf = 80_MHz - pre * 1_MHz;
+            if (!(tf % freq)) {
+                ok = true;
+                frequencies.emplace_back((freq >= 1_MHz) ? QString("%1 MHz").arg(freq / 1000000.) : QString("%1 kHz").arg(freq / 1000.),
+                    pre, tf / freq - 1);
+                break;
+            }
+        }
+        //        if (ok) {
+        //            ui->plainTextEdit->appendPlainText(QString("err F%1 A%2 P%3").arg(freq).arg(80_MHz / freq - 1).arg(-1));
+        //        }
+    }
 
     for (auto&& freq : frequencies)
         ui->cbxFreq->addItem(freq.Name);
