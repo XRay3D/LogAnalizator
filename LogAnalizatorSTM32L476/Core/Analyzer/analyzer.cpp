@@ -1,11 +1,10 @@
 #include "analyzer.h"
 #include "Nokia1616_LCD_lib.h"
-#include "main.h"
 #include "stm32l4xx.h"
-#include "usb_device.h"
-#include "usbd_core.h"
 #include "usbd_custom_hid_if.h"
-#include "usbd_customhid.h"
+
+#include "stm32l4xx_hal_irda.h"
+#include "usart.h"
 
 #define USB_CMD_START_CAPTURE 0x55
 
@@ -35,6 +34,7 @@ void AnalyzerUSB::pool(void* lcd_) {
     uint8_t y {};
     //    for (;;) {
     static int ctr {};
+
     if (Analyzer.status() == Status::CAPTURE) {
         lcd.clear();
         lcd.print(++ctr, { 0, y += 8 }, White);
@@ -110,6 +110,8 @@ void AnalyzerUSB::pool(void* lcd_) {
             CAPTURE_TIMER->CR1 |= TIM_CR1_CEN;
         }
 
+        printf("0123456789\n");
+        HAL_IRDA_Transmit(&hirda4, (uint8_t*)"\x01\x02\x01\x08\x10\x20\x40\x80", 8, 1000);
         lcd.print("Wait", { 0, y += 8 }, White);
 
         while (status_ == Status::CAPTURE)

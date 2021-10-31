@@ -3,6 +3,16 @@ import qbs.File
 import qbs.FileInfo
 import qbs.ModUtils
 
+/*
+set remote hardware-breakpoint-limit 6
+set remote hardware-watchpoint-limit 4
+monitor reset halt
+load
+monitor reset halt
+monitor tpiu config internal :5555 uart off 80000000
+monitor itm port 0 1
+*/
+
 Project{
 
     //# cpu

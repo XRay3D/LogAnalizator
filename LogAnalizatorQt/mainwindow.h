@@ -20,7 +20,7 @@ public:
 private:
     Ui::MainWindow* ui;
     UsbDevice* usbDevice;
-    class Model* model;
+    //    class Model* model;
     class Wire* wires[8];
     void start();
 

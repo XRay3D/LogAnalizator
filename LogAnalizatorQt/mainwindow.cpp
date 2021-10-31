@@ -94,13 +94,17 @@ MainWindow::MainWindow(QWidget* parent)
         ANY_EDGE,
     };
 
+    /*
+↑↓↗↘╳■□●◯
+    */
+
     QStringList Trigger {
-        "Х - триггер неактивен",
-        "0 - триггер по низкому уровню",
-        "1 - триггер по высокому уровню",
-        "< - триггер по переднему фронту",
-        "> - триггер по заднему фронту",
-        "<> - триггер по любому фронту",
+        "Х", // - триггер неактивен",
+        "0", // - триггер по низкому уровню",
+        "1", // - триггер по высокому уровню",
+        "↑", // - триггер по переднему фронту",
+        "↓", // - триггер по заднему фронту",
+        "↕", // - триггер по любому фронту",
     };
 
     ui->cbxTrig0->addItems(Trigger);
@@ -112,13 +116,13 @@ MainWindow::MainWindow(QWidget* parent)
     ui->cbxTrig6->addItems(Trigger);
     ui->cbxTrig7->addItems(Trigger);
 
-    ui->tableView->setModel(model = new Model { ui->tableView });
+    //    ui->tableView->setModel(model = new Model { ui->tableView });
 
-    ui->tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
-    ui->tableView->horizontalHeader()->setDefaultSectionSize(10);
-    ui->tableView->horizontalHeader()->setVisible(false);
+    //    ui->tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    //    ui->tableView->horizontalHeader()->setDefaultSectionSize(10);
+    //    ui->tableView->horizontalHeader()->setVisible(false);
 
-    ui->tableView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    //    ui->tableView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     ui->graphicsView->setScene(new QGraphicsScene { ui->graphicsView });
     for (int i {}; auto&& wire : wires) {
@@ -203,7 +207,7 @@ void MainWindow::start() {
         auto rect { ui->graphicsView->scene()->itemsBoundingRect() };
         ui->graphicsView->setSceneRect(rect);
         //        ui->graphicsView->fitInView(rect);
-        model->setData(std::move(InputData));
+        //        model->setData(std::move(InputData));
 
         //        std::vector<PointCollection> NewChannelsData(CHANNEL_COUNT);
         //        for (int chnl = 0; chnl < CHANNEL_COUNT; chnl++) {

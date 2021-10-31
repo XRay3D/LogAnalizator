@@ -12,11 +12,16 @@
 extern "C" void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 
-extern "C" int _write(int file, char* ptr, int len) {
-    //return usart_write(platform_get_console(), (u8 *)ptr, len);
+extern "C" int _write(int fd, char* ptr, int len) {
+    (void)fd;
     int i = 0;
-    for (i = 0; i < len; i++)
-        ITM_SendChar((*ptr++));
+    while (ptr[i] && (i < len)) {
+        ITM_SendChar((int)ptr[i]);
+        if (ptr[i] == '\n') {
+            ITM_SendChar((int)'\r');
+        }
+        i++;
+    }
     return len;
 }
 
